@@ -13,8 +13,9 @@ const App = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [error, setError] = useState('');
   const [language, setLanguage] = useState('english');
+  const [debugInfo, setDebugInfo] = useState('');
 
-  // ✅ PRODUCTION BACKEND URL - Your Render backend is working!
+  // ✅ CORRECT BACKEND URL - NO TRAILING SLASH!
   const API_BASE_URL = 'https://mng-backend-zedt.onrender.com';
 
   // Translations
@@ -67,6 +68,7 @@ const App = () => {
 
   useEffect(() => {
     console.log('🚀 App started - Backend URL:', API_BASE_URL);
+    setDebugInfo(`API URL: ${API_BASE_URL}\nEnvironment: ${process.env.NODE_ENV}`);
     fetchStates();
     detectUserLocation();
   }, []);
@@ -77,22 +79,27 @@ const App = () => {
       const response = await axios.get(`${API_BASE_URL}/api/location`);
       console.log('📍 Location detected:', response.data);
       setUserLocation(response.data);
+      setDebugInfo(prev => prev + `\nLocation: ${response.data.state}, ${response.data.district}`);
     } catch (error) {
       console.log('📍 Location detection failed:', error);
-      // Don't show error for location detection
+      setDebugInfo(prev => prev + `\nLocation error: ${error.message}`);
     }
   };
 
   const fetchStates = async () => {
     try {
-      console.log('🌍 Fetching states from backend...');
+      console.log('🌍 Fetching states from:', `${API_BASE_URL}/api/states`);
       setError('');
-      const response = await axios.get(`${API_BASE_URL}/api/states`);
+      const response = await axios.get(`${API_BASE_URL}/api/states`, {
+        timeout: 15000
+      });
       console.log('✅ States received:', response.data);
       setStates(response.data);
+      setDebugInfo(prev => prev + `\nStates loaded: ${response.data.length} states`);
     } catch (error) {
       console.error('❌ Error fetching states:', error);
-      setError('Failed to load states. Please refresh the page.');
+      setError('Failed to load states. Please check if backend is running.');
+      setDebugInfo(prev => prev + `\nStates error: ${error.message}`);
       // Fallback states
       setStates(["Rajasthan", "Madhya Pradesh", "Uttar Pradesh"]);
     }
@@ -100,14 +107,21 @@ const App = () => {
 
   const fetchDistricts = async (state) => {
     try {
-      console.log('🏛️ Fetching districts for:', state);
+      console.log('🏛️ Fetching districts for state:', state);
       setError('');
-      const response = await axios.get(`${API_BASE_URL}/api/state/${state}/districts`);
+      const url = `${API_BASE_URL}/api/state/${encodeURIComponent(state)}/districts`;
+      console.log('📡 Districts URL:', url);
+      
+      const response = await axios.get(url, {
+        timeout: 15000
+      });
       console.log('✅ Districts received:', response.data);
       setDistricts(response.data);
+      setDebugInfo(prev => prev + `\nDistricts for ${state}: ${response.data.length} districts`);
     } catch (error) {
       console.error('❌ Error fetching districts:', error);
       setError('Failed to load districts.');
+      setDebugInfo(prev => prev + `\nDistricts error: ${error.message}`);
       // Fallback districts
       const sampleDistricts = {
         "Rajasthan": ["Jaipur", "Udaipur", "Jodhpur", "Bikaner"],
@@ -121,27 +135,32 @@ const App = () => {
   const fetchDistrictData = async (district) => {
     setLoading(true);
     try {
-      console.log('📊 Fetching data for:', district, 'in', selectedState);
+      console.log('📊 Fetching district data for:', district, 'in state:', selectedState);
       setError('');
       
-      // ✅ CORRECT API CALL - Using both state and district
-      const response = await axios.get(
-        `${API_BASE_URL}/api/district/${selectedState}/${district}`
-      );
+      const url = `${API_BASE_URL}/api/district/${encodeURIComponent(selectedState)}/${encodeURIComponent(district)}`;
+      console.log('📡 District data URL:', url);
+      
+      const response = await axios.get(url, {
+        timeout: 15000
+      });
       
       console.log('✅ District data received:', response.data);
+      setDebugInfo(prev => prev + `\nDistrict data for ${district}: ${response.data ? response.data.length : 0} records`);
       
       if (response.data && response.data.length > 0) {
-        setCurrentData(response.data[0]); // Get the first record
+        setCurrentData(response.data[0]);
         setDistrictData(response.data);
       } else {
         setCurrentData(null);
         setDistrictData([]);
-        setError(`No data available for ${district}`);
+        setError(`${t.noData} ${district}`);
       }
     } catch (error) {
       console.error('❌ Error fetching district data:', error);
-      setError('Failed to load district data. Please try again.');
+      const errorMsg = `Failed to load district data: ${error.message}`;
+      setError(errorMsg);
+      setDebugInfo(prev => prev + `\nDistrict data error: ${error.message}`);
       setCurrentData(null);
       setDistrictData([]);
     } finally {
@@ -176,15 +195,42 @@ const App = () => {
       setSelectedState(userLocation.state);
       setSelectedDistrict(userLocation.district);
       fetchDistricts(userLocation.state);
-      // Small delay to ensure districts are loaded
       setTimeout(() => {
         fetchDistrictData(userLocation.district);
-      }, 1000);
+      }, 500);
     }
   };
 
   const toggleLanguage = () => {
     setLanguage(language === 'english' ? 'hindi' : 'english');
+  };
+
+  const testBackendConnection = async () => {
+    console.log('🧪 Testing backend connection...');
+    setDebugInfo(prev => prev + '\n--- Testing Connection ---');
+    
+    try {
+      // Test 1: Health check
+      const health = await axios.get(`${API_BASE_URL}/api/health`);
+      setDebugInfo(prev => prev + `\nHealth: ${health.data.status}`);
+      
+      // Test 2: States
+      const states = await axios.get(`${API_BASE_URL}/api/states`);
+      setDebugInfo(prev => prev + `\nStates count: ${states.data.length}`);
+      
+      // Test 3: Rajasthan districts
+      const districts = await axios.get(`${API_BASE_URL}/api/state/Rajasthan/districts`);
+      setDebugInfo(prev => prev + `\nRajasthan districts: ${districts.data.length}`);
+      
+      // Test 4: Udaipur data
+      const udaipurData = await axios.get(`${API_BASE_URL}/api/district/Rajasthan/Udaipur`);
+      setDebugInfo(prev => prev + `\nUdaipur records: ${udaipurData.data.length}`);
+      
+      alert('✅ All backend tests passed!');
+    } catch (error) {
+      setDebugInfo(prev => prev + `\nTest error: ${error.message}`);
+      alert(`❌ Backend test failed: ${error.message}`);
+    }
   };
 
   const formatNumber = (num) => {
@@ -195,19 +241,6 @@ const App = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString('en-IN');
-  };
-
-  // Test backend connection manually
-  const testConnection = async () => {
-    try {
-      console.log('🧪 Testing backend connection...');
-      const response = await axios.get(`${API_BASE_URL}/api/health`);
-      console.log('✅ Backend health:', response.data);
-      alert(`Backend is working! Status: ${response.data.status}`);
-    } catch (error) {
-      console.error('❌ Backend test failed:', error);
-      alert('Backend connection failed');
-    }
   };
 
   return (
@@ -225,15 +258,26 @@ const App = () => {
       <header className="header">
         <h1>🌾 {t.title}</h1>
         <p>{t.subtitle}</p>
-        <div className="backend-info">
-          <small>Backend: {API_BASE_URL}</small>
-          <button onClick={testConnection} className="test-btn">
-            Test Connection
-          </button>
+        <div style={{background: '#f5f5f5', padding: '10px', borderRadius: '5px', marginTop: '10px', fontSize: '12px'}}>
+          <strong>Backend URL:</strong> {API_BASE_URL}
         </div>
       </header>
 
       <main className="main-content">
+        {/* Debug Panel */}
+        <div style={{background: '#fff3cd', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #ffeaa7'}}>
+          <h4>🔧 Debug Information</h4>
+          <button 
+            onClick={testBackendConnection}
+            style={{padding: '8px 15px', marginBottom: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px'}}
+          >
+            Test Backend Connection
+          </button>
+          <pre style={{fontSize: '12px', whiteSpace: 'pre-wrap'}}>
+            {debugInfo}
+          </pre>
+        </div>
+
         {error && (
           <div className="error-message">
             ⚠️ {error}
@@ -358,33 +402,6 @@ const App = () => {
                 </div>
               </div>
             </div>
-
-            {/* Performance Trend */}
-            {districtData.length > 1 && (
-              <div className="trend-section">
-                <h3>📈 {t.trend}</h3>
-                <div className="trend-chart">
-                  {districtData.map((data, index) => (
-                    <div key={index} className="trend-item">
-                      <div className="trend-label">
-                        {data.month} {data.financial_year}
-                      </div>
-                      <div className="trend-bar">
-                        <div 
-                          className="trend-fill"
-                          style={{
-                            width: `${(data.total_person_days / Math.max(...districtData.map(d => d.total_person_days || 1))) * 100}%`
-                          }}
-                        ></div>
-                      </div>
-                      <div className="trend-value">
-                        {formatNumber(data.total_person_days)} {t.days.toLowerCase()}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
