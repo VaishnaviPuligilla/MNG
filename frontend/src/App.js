@@ -123,7 +123,8 @@ const App = () => {
     setError('');
     
     // Use the main endpoint
-    const response = await axios.get(`${API_BASE_URL}/api/district/${district}`);
+    const response = await axios.get(`${API_BASE_URL}/api/district/${selectedState}/${district}`);
+
     console.log('District data received:', response.data);
     
     if (response.data && response.data.length > 0) {
