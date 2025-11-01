@@ -12,12 +12,12 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [error, setError] = useState('');
-  const [language, setLanguage] = useState('english'); // 'english' or 'hindi'
+  const [language, setLanguage] = useState('english');
 
   // Use environment variable for API URL or fallback to localhost
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-  // Translations for rural users
+  // Translations
   const translations = {
     english: {
       title: "Our Voice, Our Rights",
@@ -116,34 +116,33 @@ const App = () => {
     }
   };
 
- const fetchDistrictData = async (district) => {
-  setLoading(true);
-  try {
-    console.log('Fetching district data for:', district);
-    setError('');
-    
-    // Use the main endpoint
-    const response = await axios.get(`${API_BASE_URL}/api/district/${selectedState}/${district}`);
-
-    console.log('District data received:', response.data);
-    
-    if (response.data && response.data.length > 0) {
-      setCurrentData(response.data[response.data.length - 1]); // Latest record
-      setDistrictData(response.data);
-    } else {
+  const fetchDistrictData = async (district) => {
+    setLoading(true);
+    try {
+      console.log('Fetching district data for:', district, 'in state:', selectedState);
+      setError('');
+      
+      // CORRECTED: Using both state and district in the API call
+      const response = await axios.get(`${API_BASE_URL}/api/district/${selectedState}/${district}`);
+      console.log('District data received:', response.data);
+      
+      if (response.data && response.data.length > 0) {
+        setCurrentData(response.data[0]); // Latest record
+        setDistrictData(response.data);
+      } else {
+        setCurrentData(null);
+        setDistrictData([]);
+        setError(`${t.noData} ${district}`);
+      }
+    } catch (error) {
+      console.error('Error fetching district data:', error);
+      setError('Failed to load district data. Please try another district.');
       setCurrentData(null);
       setDistrictData([]);
-      setError(`No data available for ${district}`);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching district data:', error);
-    setError('Failed to load district data. Please try another district.');
-    setCurrentData(null);
-    setDistrictData([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleStateChange = (e) => {
     const state = e.target.value;
@@ -172,7 +171,10 @@ const App = () => {
       setSelectedState(userLocation.state);
       setSelectedDistrict(userLocation.district);
       fetchDistricts(userLocation.state);
-      fetchDistrictData(userLocation.district);
+      // Small delay to ensure districts are loaded before fetching data
+      setTimeout(() => {
+        fetchDistrictData(userLocation.district);
+      }, 500);
     }
   };
 
@@ -214,7 +216,7 @@ const App = () => {
           </div>
         )}
         
-        {/* Selection Panel with Large Touch-friendly Elements */}
+        {/* Selection Panel */}
         <div className="selection-panel">
           <div className="form-group">
             <label className="form-label">{t.selectState}:</label>
@@ -383,9 +385,9 @@ const App = () => {
       <footer className="footer">
         <p>{t.footer}</p>
         <div className="footer-info">
-          <span>Data Source: data.gov.in</span>
+          <span>Data Source: MGNREGA Portal</span>
           <span>•</span>
-          <span>Auto-updated every 6 hours</span>
+          <span>Auto-updated regularly</span>
         </div>
       </footer>
     </div>
