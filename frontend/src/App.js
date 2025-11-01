@@ -14,8 +14,8 @@ const App = () => {
   const [error, setError] = useState('');
   const [language, setLanguage] = useState('english');
 
-  // Use environment variable for API URL or fallback to localhost
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  // ✅ PRODUCTION URL - Update this to your Render backend
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://mng-backend-zedt.onrender.com';
 
   // Translations
   const translations = {
@@ -66,7 +66,7 @@ const App = () => {
   const t = translations[language];
 
   useEffect(() => {
-    console.log('App started - fetching states and location');
+    console.log('App started - API URL:', API_BASE_URL);
     fetchStates();
     detectUserLocation();
   }, []);
@@ -85,7 +85,7 @@ const App = () => {
 
   const fetchStates = async () => {
     try {
-      console.log('Fetching states from API...');
+      console.log('Fetching states from:', `${API_BASE_URL}/api/states`);
       setError('');
       const response = await axios.get(`${API_BASE_URL}/api/states`);
       console.log('States received:', response.data);
@@ -93,6 +93,7 @@ const App = () => {
     } catch (error) {
       console.error('Error fetching states:', error);
       setError('Failed to load states. Please check if backend is running.');
+      // Fallback states
       setStates(["Rajasthan", "Madhya Pradesh", "Uttar Pradesh"]);
     }
   };
@@ -101,12 +102,13 @@ const App = () => {
     try {
       console.log('Fetching districts for state:', state);
       setError('');
-      const response = await axios.get(`${API_BASE_URL}/api/state/${state}/districts`);
+      const response = await axios.get(`${API_BASE_URL}/api/state/${encodeURIComponent(state)}/districts`);
       console.log('Districts received:', response.data);
       setDistricts(response.data);
     } catch (error) {
       console.error('Error fetching districts:', error);
       setError('Failed to load districts.');
+      // Fallback districts
       const sampleDistricts = {
         "Rajasthan": ["Jaipur", "Udaipur", "Jodhpur", "Bikaner"],
         "Madhya Pradesh": ["Bhopal", "Indore", "Gwalior"],
@@ -122,12 +124,15 @@ const App = () => {
       console.log('Fetching district data for:', district, 'in state:', selectedState);
       setError('');
       
-      // CORRECTED: Using both state and district in the API call
-      const response = await axios.get(`${API_BASE_URL}/api/district/${selectedState}/${district}`);
+      // CORRECTED API CALL with both state and district
+      const response = await axios.get(
+        `${API_BASE_URL}/api/district/${encodeURIComponent(selectedState)}/${encodeURIComponent(district)}`
+      );
+      
       console.log('District data received:', response.data);
       
       if (response.data && response.data.length > 0) {
-        setCurrentData(response.data[0]); // Latest record
+        setCurrentData(response.data[0]);
         setDistrictData(response.data);
       } else {
         setCurrentData(null);
@@ -171,7 +176,6 @@ const App = () => {
       setSelectedState(userLocation.state);
       setSelectedDistrict(userLocation.district);
       fetchDistricts(userLocation.state);
-      // Small delay to ensure districts are loaded before fetching data
       setTimeout(() => {
         fetchDistrictData(userLocation.district);
       }, 500);
@@ -334,33 +338,6 @@ const App = () => {
                 </div>
               </div>
             </div>
-
-            {/* Performance Trend */}
-            {districtData.length > 1 && (
-              <div className="trend-section">
-                <h3>📈 {t.trend}</h3>
-                <div className="trend-chart">
-                  {districtData.map((data, index) => (
-                    <div key={index} className="trend-item">
-                      <div className="trend-label">
-                        {data.month} {data.financial_year}
-                      </div>
-                      <div className="trend-bar">
-                        <div 
-                          className="trend-fill"
-                          style={{
-                            width: `${(data.total_person_days / Math.max(...districtData.map(d => d.total_person_days || 1))) * 100}%`
-                          }}
-                        ></div>
-                      </div>
-                      <div className="trend-value">
-                        {formatNumber(data.total_person_days)} {t.days.toLowerCase()}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -385,9 +362,9 @@ const App = () => {
       <footer className="footer">
         <p>{t.footer}</p>
         <div className="footer-info">
-          <span>Data Source: MGNREGA Portal</span>
+          <span>Backend: {API_BASE_URL}</span>
           <span>•</span>
-          <span>Auto-updated regularly</span>
+          <span>Data Source: MGNREGA Portal</span>
         </div>
       </footer>
     </div>
