@@ -398,10 +398,10 @@ app.get('/api/use-sample-data', async (req, res) => {
 // Initialize data and start server
 initializeData().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 MGNREGA Production Backend - MongoDB Atlas`);
-    console.log(`📍 Health: http://localhost:${PORT}/api/health`);
-    console.log(`🔄 Load Sample Data: http://localhost:${PORT}/api/use-sample-data`);
-    console.log(`🌍 Frontend: http://localhost:3000`);
+    console.log(`📍 Health: /api/health`);
+    console.log(`🔄 Load Sample Data: /api/use-sample-data`);
+    console.log(`🌍 Frontend: (set your client URL if deployed)`);
   });
 });
